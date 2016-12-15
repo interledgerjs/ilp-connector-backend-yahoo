@@ -22,7 +22,7 @@ class YahooFinanceBackend {
     this.spread = opts.spread || 0
     if (Array.isArray(opts.currencyWithLedgerPairs)) {
       this.pairs = opts.currencyWithLedgerPairs
-    } else if (opts.currencyWithLedgerPairs.toArray === 'function') {
+    } else if (typeof opts.currencyWithLedgerPairs.toArray === 'function') {
       this.pairs = opts.currencyWithLedgerPairs.toArray()
     } else {
       throw new Error('Unexpected type for opts.currencyWithLedgerPairs', opts.currencyWithLedgerPairs)
