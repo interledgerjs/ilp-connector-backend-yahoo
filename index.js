@@ -27,7 +27,10 @@ class YahooFinanceBackend {
     } else {
       throw new Error('Unexpected type for opts.currencyWithLedgerPairs', opts.currencyWithLedgerPairs)
     }
-    this.rates = {}
+    this.rates = {
+      // Rates are with respect to USD
+      USD: 1
+    }
     this.connected = false
   }
 
