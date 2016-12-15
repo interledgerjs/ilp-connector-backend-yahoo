@@ -20,7 +20,13 @@ class YahooFinanceBackend {
    */
   constructor (opts) {
     this.spread = opts.spread || 0
-    this.currencyWithLedgerPairs = opts.currencyWithLedgerPairs
+    if (Array.isArray(opts.currencyWithLedgerPairs)) {
+      this.pairs = opts.currencyWithLedgerPairs
+    } else if (opts.currencyWithLedgerPairs.toArray === 'function') {
+      this.pairs = opts.currencyWithLedgerPairs.toArray()
+    } else {
+      throw new Error('Unexpected type for opts.currencyWithLedgerPairs', opts.currencyWithLedgerPairs)
+    }
     this.rates = {}
     this.connected = false
   }
