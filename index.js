@@ -27,6 +27,8 @@ class YahooFinanceBackend {
 
   /**
    * Get the rates from the API
+   *
+   * returns Promise.<null>
    */
   connect () {
     if (this.connected) {
@@ -49,6 +51,11 @@ class YahooFinanceBackend {
       })
   }
 
+  /**
+   * Get backend status
+   *
+   * @returns Promise.<Object>
+   */
   getStatus () {
     return Promise.resolve({
       backendStatus: 'OK'
@@ -70,6 +77,8 @@ class YahooFinanceBackend {
    * @param {String} params.destination_ledger The URI of the destination ledger
    * @param {String|Integer|BigNumber} params.source_amount The amount of the source asset we want to send (either this or the destination_amount must be set)
    * @param {String|Integer|BigNumber} params.destination_amount The amount of the destination asset we want to send (either this or the source_amount must be set)
+   *
+   * @return Promise.<Object>
    */
   getQuote (params) {
     // Get ratio between currencies and apply spread
@@ -102,21 +111,23 @@ class YahooFinanceBackend {
       sourceAmount = new BigNumber(params.destination_amount).div(rate)
       destinationAmount = new BigNumber(params.destination_amount)
     } else {
-      throw new NoAmountSpecifiedError('Must specify either source ' +
-        'or destination amount to get quote')
+      return Promise.reject(new NoAmountSpecifiedError('Must specify either source ' +
+        'or destination amount to get quote'))
     }
 
-    return {
+    return Promise.resolve({
       source_ledger: params.source_ledger,
       destination_ledger: params.destination_ledger,
       source_amount: sourceAmount.toString(),
       destination_amount: destinationAmount.toString()
-    }
+    })
   }
 
   /**
    * Dummy function because we're not actually going
    * to submit the payment to the backend
+   *
+   * @returns Promise.<null>
    */
   submitPayment (payment) {
     return Promise.resolve()
