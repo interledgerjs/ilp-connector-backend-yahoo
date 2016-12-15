@@ -91,7 +91,7 @@ class YahooFinanceBackend {
     let sourceCurrency
     let destinationCurrency
     // TODO we should only need to do this translation once
-    for (let pair of this.currencyWithLedgerPairs) {
+    for (let pair of this.pairs) {
       if (pair[0].indexOf(params.source_ledger) === 4 &&
         pair[1].indexOf(params.destination_ledger) === 4) {
           sourceCurrency = pair[0].slice(0, 3)
