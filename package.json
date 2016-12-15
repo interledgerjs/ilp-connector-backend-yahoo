@@ -1,0 +1,21 @@
+{
+  "name": "ilp-connector-backend-yahoo",
+  "version": "1.0.0",
+  "description": "ILP connector backend that uses the Yahoo Finance API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ilp",
+    "interledger"
+  ],
+  "author": "Interledger Team <info@interledger.org>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "bignumber.js": "^3.0.1",
+    "five-bells-shared": "^21.0.1",
+    "lodash": "^4.17.2",
+    "superagent": "^3.3.0"
+  }
+}
