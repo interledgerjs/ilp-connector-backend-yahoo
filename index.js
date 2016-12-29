@@ -2,11 +2,10 @@
 
 const request = require('superagent')
 const BigNumber = require('bignumber.js')
-const _ = require('lodash')
 const NoAmountSpecifiedError = require('./errors/no-amount-specified-error.js')
 const AssetsNotTradedError = require('./errors/assets-not-traded-error.js')
 
-const API_URL = 'https://finance.yahoo.com/webservice/v1/symbols/allcurrencies/quote?format=json'
+const API_URL = 'https://query.yahooapis.com/v1/public/yql'
 
 /**
  * ILP connector backend that uses the Yahoo Finance API for rates
@@ -27,10 +26,12 @@ class YahooFinanceBackend {
     } else {
       throw new Error('Unexpected type for opts.currencyWithLedgerPairs', opts.currencyWithLedgerPairs)
     }
-    this.rates = {
-      // Rates are with respect to USD
-      USD: 1
-    }
+    this.currencies = this.pairs.reduce((currencies, pair) => {
+      currencies.push(pair[0].slice(0,3))
+      currencies.push(pair[1].slice(0,3))
+      return currencies
+    }, [])
+    this.rates = {}
     this.connected = false
   }
 
@@ -45,16 +46,19 @@ class YahooFinanceBackend {
     }
 
     return request.get(API_URL)
+      .query({
+        q: 'select * from yahoo.finance.xchange where pair in ("USD' + this.currencies.join('", "USD') + '")',
+        env: 'store://datatables.org/alltableswithkeys',
+        format: 'json'
+      })
       .then((response) => {
-        const quotes = response.body.list.resources
+        const quotes = response.body.query.results.rate
         for (let quote of quotes) {
-          if (!quote.resource || quote.resource.classname !== 'Quote') {
-            continue
+          const currency = quote.id.slice(3)
+          if (quote.Rate === 'N/A') {
+            throw new AssetsNotTradedError('Yahoo backend does not have rate for currency: ' + currency)
           }
-          const fields = quote.resource.fields
-          const symbol = fields.symbol.slice(0,3)
-          const price = fields.price
-          this.rates[symbol] = price
+          this.rates[currency] = quote.Rate
         }
         this.connected = true
       })
