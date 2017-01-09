@@ -2,8 +2,10 @@
 
 const request = require('superagent')
 const BigNumber = require('bignumber.js')
-const NoAmountSpecifiedError = require('./errors/no-amount-specified-error.js')
 const AssetsNotTradedError = require('./errors/assets-not-traded-error.js')
+// This simple backend uses a fixed (large) source amount and a rate to generate
+// the destination amount for the curve.
+const PROBE_SOURCE_AMOUNT = 100000000
 
 const API_URL = 'https://query.yahooapis.com/v1/public/yql'
 
@@ -88,12 +90,10 @@ class YahooFinanceBackend {
    *
    * @param {String} params.source_ledger The URI of the source ledger
    * @param {String} params.destination_ledger The URI of the destination ledger
-   * @param {String|Integer|BigNumber} params.source_amount The amount of the source asset we want to send (either this or the destination_amount must be set)
-   * @param {String|Integer|BigNumber} params.destination_amount The amount of the destination asset we want to send (either this or the source_amount must be set)
    *
    * @return Promise.<Object>
    */
-  getQuote (params) {
+  getCurve (params) {
     // Get ratio between currencies and apply spread
     let sourceCurrency
     let destinationCurrency
@@ -115,24 +115,10 @@ class YahooFinanceBackend {
     let rate = new BigNumber(destinationRate).div(sourceRate)
     rate = this._subtractSpread(rate)
 
-    let sourceAmount
-    let destinationAmount
-    if (params.source_amount) {
-      sourceAmount = new BigNumber(params.source_amount)
-      destinationAmount = new BigNumber(params.source_amount).times(rate)
-    } else if (params.destination_amount) {
-      sourceAmount = new BigNumber(params.destination_amount).div(rate)
-      destinationAmount = new BigNumber(params.destination_amount)
-    } else {
-      return Promise.reject(new NoAmountSpecifiedError('Must specify either source ' +
-        'or destination amount to get quote'))
-    }
-
+    const sourceAmount = PROBE_SOURCE_AMOUNT
+    const destinationAmount = new BigNumber(params.source_amount).times(rate).toString()
     return Promise.resolve({
-      source_ledger: params.source_ledger,
-      destination_ledger: params.destination_ledger,
-      source_amount: sourceAmount.toString(),
-      destination_amount: destinationAmount.toString()
+      points: [[0, 0], [sourceAmount, +destinationAmount]]
     })
   }
 
