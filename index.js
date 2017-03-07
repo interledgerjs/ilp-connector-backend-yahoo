@@ -3,11 +3,13 @@
 const request = require('superagent')
 const BigNumber = require('bignumber.js')
 const AssetsNotTradedError = require('./errors/assets-not-traded-error.js')
+const debug = require('debug')('ilp-connector-backend-yahoo')
 // This simple backend uses a fixed (large) source amount and a rate to generate
 // the destination amount for the curve.
 const PROBE_SOURCE_AMOUNT = 100000000
 
 const API_URL = 'https://query.yahooapis.com/v1/public/yql'
+const currencies = require('./currencies.json')
 
 /**
  * ILP connector backend that uses the Yahoo Finance API for rates
@@ -17,22 +19,10 @@ class YahooFinanceBackend {
    * Constructor
    *
    * @param {Integer} opts.spread The spread we will use to mark up the FX rates
-   * @param {Object} opts.currencyWithLedgerPairs
    */
   constructor (opts) {
     this.spread = opts.spread || 0
-    if (Array.isArray(opts.currencyWithLedgerPairs)) {
-      this.pairs = opts.currencyWithLedgerPairs
-    } else if (typeof opts.currencyWithLedgerPairs.toArray === 'function') {
-      this.pairs = opts.currencyWithLedgerPairs.toArray()
-    } else {
-      throw new Error('Unexpected type for opts.currencyWithLedgerPairs', opts.currencyWithLedgerPairs)
-    }
-    this.currencies = this.pairs.reduce((currencies, pair) => {
-      currencies.push(pair[0].slice(0,3))
-      currencies.push(pair[1].slice(0,3))
-      return currencies
-    }, [])
+    this.currencies = currencies
     this.rates = {}
     this.connected = false
   }
@@ -58,10 +48,11 @@ class YahooFinanceBackend {
         for (let quote of quotes) {
           const currency = quote.id.slice(3)
           if (quote.Rate === 'N/A') {
-            throw new AssetsNotTradedError('Yahoo backend does not have rate for currency: ' + currency)
+            continue
           }
           this.rates[currency] = quote.Rate
         }
+        debug('got rates (vs USD): ' + JSON.stringify(this.rates))
         this.connected = true
       })
   }
@@ -88,38 +79,38 @@ class YahooFinanceBackend {
   /**
    * Get a quote for the given parameters
    *
-   * @param {String} params.source_ledger The URI of the source ledger
-   * @param {String} params.destination_ledger The URI of the destination ledger
+   * @param {String} params.source_currency The currency code of the source ledger
+   * @param {String} params.destination_currency The currency code of the destination ledger
    *
    * @return Promise.<Object>
    */
   getCurve (params) {
+    debug('getCurve', params)
     // Get ratio between currencies and apply spread
-    let sourceCurrency
-    let destinationCurrency
-    // TODO we should only need to do this translation once
-    for (let pair of this.pairs) {
-      if (pair[0].indexOf(params.source_ledger) === 4 &&
-        pair[1].indexOf(params.destination_ledger) === 4) {
-          sourceCurrency = pair[0].slice(0, 3)
-          destinationCurrency = pair[1].slice(0, 3)
-        }
-    }
+    const sourceCurrency = params.source_currency
+    const destinationCurrency = params.destination_currency
     if (!sourceCurrency || !destinationCurrency) {
-      return Promise.reject(new AssetsNotTradedError('Connector does not trade those assets'))
+      return Promise.reject(new Error('Must supply source_currency and destination_currency to get rate'))
     }
 
     const sourceRate = this.rates[sourceCurrency]
     const destinationRate = this.rates[destinationCurrency]
+    if (!sourceRate || !destinationRate) {
+      return Promise.reject(new AssetsNotTradedError('No rate found between: ' + sourceCurrency + ' and: ' + destinationCurrency))
+    }
 
     let rate = new BigNumber(destinationRate).div(sourceRate)
+    debug('rate (without spread) from ' + sourceCurrency + ' to ' + destinationCurrency + ' = ' + rate.toString())
     rate = this._subtractSpread(rate)
+    debug('rate (with spread) from ' + sourceCurrency + ' to ' + destinationCurrency + ' = ' + rate.toString())
 
     const sourceAmount = PROBE_SOURCE_AMOUNT
-    const destinationAmount = new BigNumber(params.source_amount).times(rate).toString()
-    return Promise.resolve({
-      points: [[0, 0], [sourceAmount, +destinationAmount]]
-    })
+    const destinationAmount = new BigNumber(sourceAmount).times(rate).toNumber()
+    const curveResponse = {
+      points: [[0, 0], [sourceAmount, destinationAmount]]
+    }
+    debug('curve from ' + sourceCurrency + ' to ' + destinationCurrency + ': ' + JSON.stringify(curveResponse))
+    return Promise.resolve(curveResponse)
   }
 
   /**

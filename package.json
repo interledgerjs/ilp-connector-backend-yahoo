@@ -14,6 +14,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "bignumber.js": "^3.0.1",
+    "debug": "^2.6.1",
     "five-bells-shared": "^21.0.1",
     "superagent": "^3.3.0"
   }
