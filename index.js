@@ -21,6 +21,7 @@ class YahooFinanceBackend {
    * @param {Integer} opts.spread The spread we will use to mark up the FX rates
    */
   constructor (opts) {
+    this.getInfo = opts.getInfo
     this.spread = opts.spread || 0
     this.currencies = currencies
     this.rates = {}
@@ -104,10 +105,14 @@ class YahooFinanceBackend {
     rate = this._subtractSpread(rate)
     debug('rate (with spread) from ' + sourceCurrency + ' to ' + destinationCurrency + ' = ' + rate.toString())
 
-    const sourceAmount = PROBE_SOURCE_AMOUNT
-    const destinationAmount = new BigNumber(sourceAmount).times(rate).toNumber()
+    const sourceScale = this.getInfo(params.source_ledger).scale
+    const destinationScale = this.getInfo(params.destination_ledger).scale
+    const sourceAmount = new BigNumber(PROBE_SOURCE_AMOUNT).shift(sourceScale)
+    const destinationAmount = new BigNumber(sourceAmount)
+      .times(rate)
+      .shift(destinationScale - sourceScale)
     const curveResponse = {
-      points: [[0, 0], [sourceAmount, destinationAmount]]
+      points: [[0, 0], [sourceAmount.toNumber(), destinationAmount.toNumber()]]
     }
     debug('curve from ' + sourceCurrency + ' to ' + destinationCurrency + ': ' + JSON.stringify(curveResponse))
     return Promise.resolve(curveResponse)
